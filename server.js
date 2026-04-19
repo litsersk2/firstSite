@@ -69,8 +69,16 @@ app.use(async (req, res, next) => {
   next();
 });
 
-// View visitors
+// Password protect the visitors page
 app.get('/visitors', async (req, res) => {
+  // Check for password in the URL like /visitors?password=yourpassword
+  const { password } = req.query;
+  
+  if (password !== process.env.ADMIN_PASSWORD) {
+    res.status(401).send('Wrong password');
+    return;
+  }
+
   try {
     const visitors = await db.collection('visitors').find().sort({ time: -1 }).toArray();
     res.json(visitors);
