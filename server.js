@@ -17,7 +17,15 @@ app.use(express.static('public'));
 
 app.use(async (req, res, next) => {
   try {
-    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    // Get and clean the IP address
+    let ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    
+    // Remove IPv6 prefix if present
+    ip = ip.replace('::ffff:', '');
+    
+    // If multiple IPs in x-forwarded-for, take the first one
+    if (ip.includes(',')) ip = ip.split(',')[0].trim();
+
     const userAgent = req.headers['user-agent'] || 'Unknown';
 
     // Detect browser
@@ -33,16 +41,17 @@ app.use(async (req, res, next) => {
     if (userAgent.includes('Mobile')) device = 'Mobile';
     else if (userAgent.includes('Tablet') || userAgent.includes('iPad')) device = 'Tablet';
 
-    // Get country from free IP lookup API
+    // Get country from IP
     let country = 'Unknown';
     try {
       const geoRes = await fetch(`http://ip-api.com/json/${ip}`);
       const geoData = await geoRes.json();
+      console.log('Geo lookup result:', geoData); // temporary debug line
       if (geoData.status === 'success') {
         country = geoData.country;
       }
-    } catch {
-      country = 'Unknown';
+    } catch (err) {
+      console.error('Geo lookup failed:', err);
     }
 
     await db.collection('visitors').insertOne({
